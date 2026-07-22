@@ -1,0 +1,74 @@
+name: 构建 EUI-NEO 演示程序
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "CMakeLists.txt"
+      - "app.cpp"
+      - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "app.cpp"
+      - ".github/workflows/build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-build:
+    name: Windows x64
+    runs-on: windows-2022
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 配置项目
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static
+
+      - name: 编译 Release
+        shell: pwsh
+        run: cmake --build build --config Release --parallel
+
+      - name: 打包 Windows 程序
+        shell: pwsh
+        run: |
+          $binDir = "build/Release"
+          $stageDir = "dist/EUI-NEO-Demo"
+          $archive = "dist/EUI-NEO-Demo-windows-x64.zip"
+
+          New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
+
+          $exe = Join-Path $binDir "EUI-NEO-Demo.exe"
+          if (-not (Test-Path $exe)) {
+            throw "未找到编译产物：$exe"
+          }
+
+          Copy-Item $exe $stageDir
+          Get-ChildItem $binDir -Filter *.dll -File -ErrorAction SilentlyContinue |
+            Copy-Item -Destination $stageDir
+
+          $assets = Join-Path $binDir "assets"
+          if (Test-Path $assets) {
+            Copy-Item $assets $stageDir -Recurse
+          }
+
+          Compress-Archive -Path "$stageDir/*" -DestinationPath $archive -Force
+
+      - name: 上传 Windows 构建产物
+        uses: actions/upload-artifact@v6
+        with:
+          name: EUI-NEO-Demo-windows-x64
+          path: dist/EUI-NEO-Demo-windows-x64.zip
+          if-no-files-found: error

@@ -20,7 +20,7 @@ set(EUI_RENDER_BACKEND opengl CACHE STRING "" FORCE)
 FetchContent_Declare(
     eui_neo
     GIT_REPOSITORY https://github.com/sudoevolve/EUI-NEO.git
-    GIT_TAG 350ede2bcc546a0d8b694a6db8320d565cb5fa1e
+    GIT_TAG v0.5.2
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(eui_neo)
